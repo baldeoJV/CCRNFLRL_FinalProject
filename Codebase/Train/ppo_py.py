@@ -26,6 +26,7 @@ import torch.nn.functional as F
 import numpy as np
 
 
+# INITIALIZE CUSTOM POLICY
 class CustomCNN(BaseFeaturesExtractor):
     def __init__(self, observation_space: spaces.Box, features_dim: int = 512):
         super().__init__(observation_space, features_dim)
@@ -54,6 +55,7 @@ class CustomCNN(BaseFeaturesExtractor):
         return self.linear(self.cnn(obs))
 
 
+# WRAP THE LAYER ON STABLE BASELINE POLICY WRAPPER
 class CustomCnnPolicy(ActorCriticPolicy):
     def __init__(self, *args, **kwargs):
         super().__init__(
@@ -65,6 +67,7 @@ class CustomCnnPolicy(ActorCriticPolicy):
         )
 
 
+# TIME STEP OR TOTAL STEP TO FINISH
 TOTAL_TIMESTEPS = 5_000_000
 LOG_INTERVAL = 10
 CHECKPOINT_FREQ = 25_000
@@ -101,21 +104,28 @@ class RewardLoggingCallback(BaseCallback):
         return True
 
 
+#  GYM CONFIG
 config = {
     "env_name": "PongNoFrameskip-v4",
     "num_envs": 8,
     "seed": 100,
 }
+
+
 env = make_atari_env(config["env_name"], n_envs=config["num_envs"], seed=config["seed"])
 env = VecFrameStack(env, n_stack=4)
 print("Environment created and wrapped.")
 print("Observation space:", env.observation_space)
 print("Action space:", env.action_space)
+
+# WRAP USING STABLE BASELINE PPO: JUST ADD PARAMETERS, SEE IMPLEMENTATION BY RIGHT CLICKING
 model = PPO(
     CustomCnnPolicy,
     env,
-    batch_size=32,
-    learning_rate=1e-4,
+    batch_size=256,
+    # batch_size=32,
+    learning_rate=2.5e-4,
+    # learning_rate=0.0001
     clip_range=0.1,
     ent_coef=0.01,
     gae_lambda=0.9,
@@ -132,14 +142,14 @@ print("\nppo Model Initialized. Starting training...")
 
 callback_list = CallbackList([checkpoint_callback, RewardLoggingCallback()])
 
-
+# LEARN MODEL AND ADD CHECKPOINT INCASE IT CRASH
 model.learn(
     total_timesteps=TOTAL_TIMESTEPS,
     callback=callback_list,
     log_interval=LOG_INTERVAL,
 )
 
-
+# DUMP JSON FILE TO COUNT EPISODES
 model.save(os.path.join(save_dir, "pong_ppo_final_model"))
 data_dict = {"episode_rewards": rewards, "episode_lengths": lengths}
 with open(f"ppo_res.json", "w") as json_file:

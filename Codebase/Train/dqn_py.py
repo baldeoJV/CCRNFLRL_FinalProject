@@ -29,6 +29,7 @@ import torch.nn.functional as F
 import numpy as np
 
 
+# INITIALIZE CUSTOM POLICY
 class CustomCNN(BaseFeaturesExtractor):
     def __init__(self, observation_space: spaces.Box, features_dim: int = 512):
         super().__init__(observation_space, features_dim)
@@ -57,6 +58,7 @@ class CustomCNN(BaseFeaturesExtractor):
         return self.linear(self.cnn(obs))
 
 
+# WRAP THE LAYER ON STABLE BASELINE POLICY WRAPPER
 class CustomCnnPolicy(DQNPolicy):
     def __init__(self, *args, **kwargs):
         super().__init__(
@@ -68,6 +70,7 @@ class CustomCnnPolicy(DQNPolicy):
         )
 
 
+# TIME STEP OR TOTAL STEP TO FINISH
 TOTAL_TIMESTEPS = 5_000_000
 # TOTAL_TIMESTEPS = 50000
 LOG_INTERVAL = 10
@@ -105,6 +108,7 @@ class RewardLoggingCallback(BaseCallback):
         return True
 
 
+#  GYM CONFIG
 config = {
     "env_name": "PongNoFrameskip-v4",
     "num_envs": 4,
@@ -119,11 +123,15 @@ env = VecFrameStack(env, n_stack=4)
 print("Environment created and wrapped.")
 print("Observation space:", env.observation_space)
 print("Action space:", env.action_space)
+
+# WRAP USING STABLE BASELINE DQN: JUST ADD PARAMETERS, SEE IMPLEMENTATION BY RIGHT CLICKING
 model = DQN(
     CustomCnnPolicy,
     env,
     batch_size=256,
-    learning_rate=2.5e-4,  # or 0.0001
+    # batch_size=32,
+    learning_rate=2.5e-4,
+    # learning_rate=0.0001
     buffer_size=10000,
     learning_starts=100000,
     gamma=0.99,
@@ -140,6 +148,7 @@ model = DQN(
 print(model.policy)
 print("\nDQN Model Initialized. Starting training...")
 
+# LEARN MODEL AND ADD CHECKPOINT INCASE IT CRASH
 callback_list = CallbackList([checkpoint_callback, RewardLoggingCallback()])
 model.learn(
     total_timesteps=TOTAL_TIMESTEPS,
@@ -147,6 +156,7 @@ model.learn(
     log_interval=LOG_INTERVAL,
 )
 
+# DUMP JSON FILE TO COUNT EPISODES
 model.save(os.path.join(save_dir, "pong_dqn_final_model"))
 data_dict = {"episode_rewards": rewards, "episode_lengths": lengths}
 with open(f"dqn_res.json", "w") as json_file:
